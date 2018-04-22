@@ -18,6 +18,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,51 +27,70 @@ import android.widget.Toast;
 public class GalleryActivity extends AppCompatActivity {
 
     private static final String GALLERY_PARAM_KEY = "param";
+    private String imgDecodableString = "";
 
     private static int RESULT_LOAD_IMG = 1;
     private static int MY_PERMISSIONS_REQUEST_WRITE_STORAGE = 1;
-    String imgDecodableString;
-
-    public static void start(Context context, String param) {
-        Intent intent = new Intent(context, GalleryActivity.class);
-        intent.putExtra(GALLERY_PARAM_KEY, param);
-        context.startActivity(intent);
-    }
+    private static Uri selectedImage;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        imgDecodableString = "";
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_gallery);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+        GridView gridview = (GridView) findViewById(R.id.gridview);
+        gridview.setAdapter(new ImageAdapter(this));
+
+        gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View v,
+                                    int position, long id) {
+                //Toast.makeText(this, position, Toast.LENGTH_LONG).show();
+                Log.w("Selected item ",""+ImageAdapter.mThumbIds[position]);
+                String imageUrl = getURLForResource(ImageAdapter.mThumbIds[position]);
+                // Set the result for the calling intent
+                Intent intent = new Intent();
+                intent.putExtra("profile_image", Uri.parse(imageUrl));
+                setResult(RESULT_OK, intent);
+
+                Log.w("Selected item ",""+imageUrl);
+                Log.w("Prev item ",""+selectedImage);
+                finish();
+
             }
         });
+
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
     }
 
+    public String getURLForResource (int resourceId) {
+        return Uri.parse("android.resource://"+R.class.getPackage().getName()+"/" +resourceId).toString();
+    }
 
-
-    public void onClick(View view) {
+    public void onSetProfileClick(View view) {
         TextView textView = (TextView) findViewById(R.id.text_view_gallery);
-        // Toggle logic
-        if (textView.getCurrentTextColor() == Color.RED) {
-            textView.setTextColor(Color.GREEN);
-            textView.setText("Lets Go");
-            Snackbar.make(view, "Opening Gallery", Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show();
-            loadImageFromGallery(view);
-        } else {
+        if(imgDecodableString.isEmpty()){
             textView.setTextColor(Color.RED);
-            textView.setText("Sure !!!");
+            textView.setText("Select Galleria Image !!!");
+        }else {
+            // Set the result for the calling intent
+            Intent intent = new Intent();
+            intent.putExtra("profile_image", selectedImage);
+            setResult(RESULT_OK, intent);
+            finish();
         }
+    }
+
+    public void onBrowseClick(View view) {
+        Snackbar.make(view, "Opening Gallery", Snackbar.LENGTH_LONG)
+                .setAction("Action", null).show();
+        TextView textView = (TextView) findViewById(R.id.text_view_gallery);
+        loadImageFromGallery(view);
+        textView.setTextColor(Color.GREEN);
+        textView.setText("Go !! Set profile now.");
     }
 
 
@@ -80,14 +101,13 @@ public class GalleryActivity extends AppCompatActivity {
             // When an Image is picked
             if (requestCode == RESULT_LOAD_IMG && resultCode == RESULT_OK && null != data) {
                 // Get the Image from data
-                Uri selectedImage = data.getData();
+                selectedImage = data.getData();
                 String[] filePathColumn = { MediaStore.Images.Media.DATA };
-
                 TextView textView = (TextView) findViewById(R.id.text_view_gallery);
                 textView.setTextColor(Color.BLUE);
                 textView.setText("Img Uri:"+selectedImage.getLastPathSegment().toString());
 
-                // Get the cursor
+                // Get the cursor and query the image
                 Cursor cursor = getContentResolver().query(selectedImage,
                         filePathColumn, null, null, null);
                 // Move to first row
@@ -95,10 +115,12 @@ public class GalleryActivity extends AppCompatActivity {
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 imgDecodableString = cursor.getString(columnIndex);
                 cursor.close();
-                ImageView imgView = (ImageView) findViewById(R.id.image_view_gallery);
-                // Set the Image in ImageView after decoding the String
-                imgView.setImageBitmap(BitmapFactory.decodeFile(imgDecodableString));
 
+                // Set the result for the calling intent
+                Intent intent = new Intent();
+                intent.putExtra("profile_image", selectedImage);
+                setResult(RESULT_OK, intent);
+                finish();
             } else {
                 Toast.makeText(this, "You haven't picked Image",
                         Toast.LENGTH_LONG).show();
@@ -158,4 +180,5 @@ public class GalleryActivity extends AppCompatActivity {
             }
         }
     }
+
 }
