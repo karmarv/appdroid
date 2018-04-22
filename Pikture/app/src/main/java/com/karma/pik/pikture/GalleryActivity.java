@@ -1,15 +1,21 @@
 package com.karma.pik.pikture;
 
 import android.Manifest;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.AnyRes;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -24,6 +30,13 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+
+/**
+ * Shows the Gallery with a grid of images
+ * Also provides a folder selector for images in the file system
+ *
+ */
 public class GalleryActivity extends AppCompatActivity {
 
     private static final String GALLERY_PARAM_KEY = "param";
@@ -33,7 +46,11 @@ public class GalleryActivity extends AppCompatActivity {
     private static int MY_PERMISSIONS_REQUEST_WRITE_STORAGE = 1;
     private static Uri selectedImage;
 
-
+    /**
+     * On load of the activity
+     *
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         imgDecodableString = "";
@@ -42,24 +59,26 @@ public class GalleryActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        // Image Adapter to populate the Grid
+        final ImageAdapter imageAdapter = new ImageAdapter(this);
         GridView gridview = (GridView) findViewById(R.id.gridview);
-        gridview.setAdapter(new ImageAdapter(this));
+        gridview.setAdapter(imageAdapter);
 
         gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v,
                                     int position, long id) {
                 //Toast.makeText(this, position, Toast.LENGTH_LONG).show();
-                Log.w("Selected item ",""+ImageAdapter.mThumbIds[position]);
-                String imageUrl = getURLForResource(ImageAdapter.mThumbIds[position]);
+                File f = (File) imageAdapter.getItem(position);
+
+                Log.w("Selected File ",""+f.getAbsolutePath());
+
                 // Set the result for the calling intent
                 Intent intent = new Intent();
-                intent.putExtra("profile_image", Uri.parse(imageUrl));
+                intent.putExtra("profile_image", f.getAbsolutePath());
                 setResult(RESULT_OK, intent);
 
-                Log.w("Selected item ",""+imageUrl);
                 Log.w("Prev item ",""+selectedImage);
                 finish();
-
             }
         });
 
@@ -67,22 +86,9 @@ public class GalleryActivity extends AppCompatActivity {
     }
 
     public String getURLForResource (int resourceId) {
-        return Uri.parse("android.resource://"+R.class.getPackage().getName()+"/" +resourceId).toString();
+        return Uri.parse("android.resource://"+R.class.getPackage().getName()+"/drawable/" +resourceId).toString();
     }
 
-    public void onSetProfileClick(View view) {
-        TextView textView = (TextView) findViewById(R.id.text_view_gallery);
-        if(imgDecodableString.isEmpty()){
-            textView.setTextColor(Color.RED);
-            textView.setText("Select Galleria Image !!!");
-        }else {
-            // Set the result for the calling intent
-            Intent intent = new Intent();
-            intent.putExtra("profile_image", selectedImage);
-            setResult(RESULT_OK, intent);
-            finish();
-        }
-    }
 
     public void onBrowseClick(View view) {
         Snackbar.make(view, "Opening Gallery", Snackbar.LENGTH_LONG)
@@ -93,7 +99,13 @@ public class GalleryActivity extends AppCompatActivity {
         textView.setText("Go !! Set profile now.");
     }
 
-
+    /**
+     * When the Files activity finished this event is raised
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -117,8 +129,9 @@ public class GalleryActivity extends AppCompatActivity {
                 cursor.close();
 
                 // Set the result for the calling intent
+                String realpath = ImageUtility.getRealPathFromURI(this,selectedImage);
                 Intent intent = new Intent();
-                intent.putExtra("profile_image", selectedImage);
+                intent.putExtra("profile_image", realpath);
                 setResult(RESULT_OK, intent);
                 finish();
             } else {
@@ -181,4 +194,26 @@ public class GalleryActivity extends AppCompatActivity {
         }
     }
 
+    public class SingleMediaScanner implements MediaScannerConnection.MediaScannerConnectionClient {
+
+        private MediaScannerConnection mMs;
+        private File mFile;
+
+        public SingleMediaScanner(Context context, File f) {
+            mFile = f;
+            mMs = new MediaScannerConnection(context, this);
+            mMs.connect();
+        }
+
+        public void onMediaScannerConnected() {
+            mMs.scanFile(mFile.getAbsolutePath(), null);
+        }
+
+        public void onScanCompleted(String path, Uri uri) {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(uri);
+            startActivity(intent);
+            mMs.disconnect();
+        }
+    }
 }

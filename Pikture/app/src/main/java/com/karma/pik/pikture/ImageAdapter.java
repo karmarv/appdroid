@@ -1,12 +1,23 @@
 package com.karma.pik.pikture;
 
 import android.content.Context;
+import android.graphics.BitmapFactory;
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class ImageAdapter extends BaseAdapter {
+
+    String SCAN_PATH = "/Download/"; // Images/
+    File[] allFiles ;
 
     // references to our images
     public static Integer[] mThumbIds = {
@@ -20,14 +31,22 @@ public class ImageAdapter extends BaseAdapter {
 
     public ImageAdapter(Context c) {
         mContext = c;
+        File folder = new File(Environment.getExternalStorageDirectory().getPath()+SCAN_PATH);
+        allFiles = folder.listFiles();
+        int i = 0;
+        for (File f : allFiles){
+            i++;
+            Log.w("File["+i+"]: ", ""+f.getAbsolutePath());
+        }
+        //TODO: recursively walk through all images in folders
     }
 
     public int getCount() {
-        return mThumbIds.length;
+        return allFiles.length;
     }
 
     public Object getItem(int position) {
-        return null;
+        return allFiles[position];
     }
 
     public long getItemId(int position) {
@@ -40,13 +59,15 @@ public class ImageAdapter extends BaseAdapter {
         if (convertView == null) {
             // if it's not recycled, initialize some attributes
             imageView = new ImageView(mContext);
-            imageView.setLayoutParams(new ViewGroup.LayoutParams(85, 85));
+            imageView.setLayoutParams(new ViewGroup.LayoutParams(250, 250));
             imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
             imageView.setPadding(8, 8, 8, 8);
+            //columnWidth = (int) ((getScreenWidth() - ((AppConstant.NUM_OF_COLUMNS + 1) * padding)) / AppConstant.NUM_OF_COLUMNS);
         } else {
             imageView = (ImageView) convertView;
         }
-        imageView.setImageResource(mThumbIds[position]);
+        //imageView.setImageResource(mThumbIds[position]);
+        imageView.setImageBitmap(BitmapFactory.decodeFile(allFiles[position].getAbsolutePath()));
         return imageView;
     }
 

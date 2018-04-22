@@ -4,43 +4,39 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.support.annotation.RequiresApi;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.util.Log;
-import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.URL;
 
+/**
+ * Opens up the default Home activity with tjhe profile image
+ */
 public class HomeActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     private static int ACTIVITY_CODE_HOME_LOAD_GAL = 0;
     private static String PROFILE_URL_KEY = "profile_image";
 
+    /**
+     * On load of the activity
+     *
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,11 +53,12 @@ public class HomeActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+        // Load the image on load of the activity
         String profileUrl = readSharedPreferences(PROFILE_URL_KEY);
         String profile = readFile(PROFILE_URL_KEY);
         if(!profile.isEmpty()){
-            Log.w("Profile Pref Url 1", profileUrl);
-            Log.w("Profile File Url 2", profile);
+            Log.w("Profile Share Pref Url:", profileUrl);
+            Log.w("Profile Data File Url :", profile);
             try
             {
                 ImageView imgView = (ImageView) findViewById(R.id.image_view_home);
@@ -133,14 +130,25 @@ public class HomeActivity extends AppCompatActivity
     }
 
 
+
+    /**
+     * Handle the click event of Images and open the Gallery Activity
+     * @param view
+     */
+    public void onClick(View view) {
+        openGalleryIntent();
+    }
     public void openGalleryIntent(){
         startActivityForResult(new Intent(this, GalleryActivity.class), ACTIVITY_CODE_HOME_LOAD_GAL);
     }
 
-    public void onClick(View view) {
-        openGalleryIntent();
-    }
-
+    /**
+     * When the Gallery activity finished this event is raised
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         Log.w("Home Result: ",""+resultCode);
@@ -148,23 +156,13 @@ public class HomeActivity extends AppCompatActivity
             if(resultCode == Activity.RESULT_OK){
                 if(data.hasExtra(PROFILE_URL_KEY)) {
                     // Get the Image from data
-                    Uri selectedImage = data.getParcelableExtra(PROFILE_URL_KEY);
-                    Log.w("Home Result OK: ", selectedImage.getPath());
-                    String[] filePathColumn = { MediaStore.Images.Media.DATA };
-                    // Get the cursor
-                    Cursor cursor = getContentResolver().query(selectedImage,
-                            filePathColumn, null, null, null);
-                    // Move to first row
-                    cursor.moveToFirst();
-                    int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                    String imgDecodableString = cursor.getString(columnIndex);
-                    cursor.close();
+                    String realpath = data.getStringExtra(PROFILE_URL_KEY);
                     ImageView imgView = (ImageView) findViewById(R.id.image_view_home);
                     // Set the Image in ImageView after decoding the String
-                    imgView.setImageBitmap(BitmapFactory.decodeFile(imgDecodableString));
-
-                    writeSharedPreferences(PROFILE_URL_KEY, selectedImage.toString());
-                    saveFile(PROFILE_URL_KEY, imgDecodableString);
+                    Log.w("Image path: ", realpath);
+                    imgView.setImageBitmap(BitmapFactory.decodeFile(realpath));
+                    writeSharedPreferences(PROFILE_URL_KEY, realpath.toString());
+                    saveFile(PROFILE_URL_KEY, realpath);
                 }
             }
             if (resultCode == Activity.RESULT_CANCELED) {
@@ -174,7 +172,13 @@ public class HomeActivity extends AppCompatActivity
         }
     }
 
-
+    /**
+     * Save the path of the file
+     * for loading image on startup
+     *
+     * @param key
+     * @param content
+     */
     protected void saveFile(String key, String content){
         try {
             FileOutputStream fileout=openFileOutput(key, MODE_PRIVATE);
@@ -185,7 +189,6 @@ public class HomeActivity extends AppCompatActivity
             e.printStackTrace();
         }
     }
-
     protected String readFile(String filename){
         String s="";
         //reading text from file
@@ -206,6 +209,12 @@ public class HomeActivity extends AppCompatActivity
         return s;
     }
 
+    /**
+     * Save information in the shared preferences
+     *
+     * @param key
+     * @param value
+     */
     protected void writeSharedPreferences(String key, String value){
         Log.w("Saving Pref: ",key+" : "+value);
         SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
