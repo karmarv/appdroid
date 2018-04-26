@@ -34,9 +34,12 @@ public class ImageAdapter extends BaseAdapter {
         File folder = new File(Environment.getExternalStorageDirectory().getPath()+SCAN_PATH);
         allFiles = folder.listFiles();
         int i = 0;
-        for (File f : allFiles){
-            i++;
-            Log.w("File["+i+"]: ", ""+f.getAbsolutePath());
+        if(allFiles != null) {
+            Log.w("File Count: ", ""+allFiles.length);
+            for (File f : allFiles) {
+                i++;
+                Log.w("File[" + i + "]: ", "" + f.getAbsolutePath());
+            }
         }
         //TODO: recursively walk through all images in folders
     }

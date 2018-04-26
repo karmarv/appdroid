@@ -59,29 +59,32 @@ public class GalleryActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        // Image Adapter to populate the Grid
-        final ImageAdapter imageAdapter = new ImageAdapter(this);
-        GridView gridview = (GridView) findViewById(R.id.gridview);
-        gridview.setAdapter(imageAdapter);
+        if(!checkIfAlreadyhavePermission()){
+            requestpermission();
+        }else {
+            // Image Adapter to populate the Grid
+            final ImageAdapter imageAdapter = new ImageAdapter(this);
+            GridView gridview = (GridView) findViewById(R.id.gridview);
+            gridview.setAdapter(imageAdapter);
 
-        gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            public void onItemClick(AdapterView<?> parent, View v,
-                                    int position, long id) {
-                //Toast.makeText(this, position, Toast.LENGTH_LONG).show();
-                File f = (File) imageAdapter.getItem(position);
+            gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                public void onItemClick(AdapterView<?> parent, View v,
+                                        int position, long id) {
+                    //Toast.makeText(this, position, Toast.LENGTH_LONG).show();
+                    File f = (File) imageAdapter.getItem(position);
 
-                Log.w("Selected File ",""+f.getAbsolutePath());
+                    Log.w("Selected File ", "" + f.getAbsolutePath());
 
-                // Set the result for the calling intent
-                Intent intent = new Intent();
-                intent.putExtra("profile_image", f.getAbsolutePath());
-                setResult(RESULT_OK, intent);
+                    // Set the result for the calling intent
+                    Intent intent = new Intent();
+                    intent.putExtra("profile_image", f.getAbsolutePath());
+                    setResult(RESULT_OK, intent);
 
-                Log.w("Prev item ",""+selectedImage);
-                finish();
-            }
-        });
-
+                    Log.w("Prev item ", "" + selectedImage);
+                    finish();
+                }
+            });
+        }
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
     }
 
