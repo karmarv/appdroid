@@ -4,8 +4,10 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.v4.content.res.ResourcesCompat;
@@ -26,6 +28,8 @@ public class MaskedImageView extends android.support.v7.widget.AppCompatImageVie
     Paint mPaint = new Paint();
     private Bitmap mBitmap;
     private Bitmap mask1Bitmap;
+
+    private Matrix transform;
 
     public MaskedImageView(Context context) {
         super(context);
@@ -51,6 +55,8 @@ public class MaskedImageView extends android.support.v7.widget.AppCompatImageVie
         // 2. Load Mask image as a bitmap
         Drawable mask1Drawable = ResourcesCompat.getDrawable(getContext().getResources(), R.drawable.icon, null);
         mask1Bitmap = ((BitmapDrawable) mask1Drawable).getBitmap();
+        // Create a matrix to do rotation
+        transform = new Matrix();
 
         switch (maskType){
             case FIRST:
@@ -94,26 +100,41 @@ public class MaskedImageView extends android.support.v7.widget.AppCompatImageVie
         Log.i("MaskImgView: ","Faces: "+ faces.size());
         for (int i = 0; i < faces.size(); ++i) {
             Face face = faces.valueAt(i);
-            int elx=0, ely=0, erx=0, ery=0;
-            for (Landmark landmark : face.getLandmarks()) {
-                if(landmark.getType() == 10) {
-                    erx = (int) (landmark.getPosition().x * scale);
-                    ery = (int) (landmark.getPosition().y * scale);
-                    Log.i("MaskImgView: ", "Draw at (" + erx + ", " + ery + "), LandmarkType:" + landmark.getType());
-                    canvas.drawCircle(erx, ery, 10, mPaint);
-                }else if(landmark.getType() == 4){
-                    elx = (int) (landmark.getPosition().x * scale);
-                    ely = (int) (landmark.getPosition().y * scale);
-                    Log.i("MaskImgView: ", "Draw at (" + elx + ", " + ely + "), LandmarkType:" + landmark.getType());
-                    canvas.drawCircle(elx, ely, 10, mPaint);
-                }
+            Log.i("MaskImgView: ",i+".) Landmarks: "+ face.getLandmarks().size());
+            if(face.getLandmarks().size()>0) {
+                Landmark eyeLMark = face.getLandmarks().get(Landmark.LEFT_EYE);
+                canvas.drawCircle((float) (eyeLMark.getPosition().x * scale), (float) (eyeLMark.getPosition().y * scale), 10, mPaint);
+
+                Landmark eyeRMark = face.getLandmarks().get(Landmark.RIGHT_EYE);
+                canvas.drawCircle((float) (eyeRMark.getPosition().x * scale), (float) (eyeRMark.getPosition().y * scale), 10, mPaint);
+
+                Log.i("MaskImgView: ", " Draw " + maskType.name());
+                //drawEyeMask(canvas, eyeLMark, eyeRMark, face.getEulerZ(), scale);
             }
-            drawMask(canvas,elx, ely, erx, ery, MaskType.FIRST, scale);
         }
     }
 
+    private void drawEyeMask(Canvas canvas, Landmark eyeLMark, Landmark eyeRMark, float angle, double scale){
+        Log.i("MaskImgView: ", "Face Angle: "+ angle);
+        Log.i("MaskImgView: ", "Eye Left(" + eyeLMark.getPosition().x + ", " + eyeLMark.getPosition().y + "), LandmarkType:" + eyeLMark.getType());
+        Log.i("MaskImgView: ", "Eye Righ(" + eyeRMark.getPosition().x + ", " + eyeRMark.getPosition().y + "), LandmarkType:" + eyeRMark.getType());
+        float mwid = 10;
+        RectF dst = new RectF((eyeLMark.getPosition().x-mwid),
+                              (eyeLMark.getPosition().y+mwid),
+                              (eyeRMark.getPosition().x+mwid),
+                              (eyeRMark.getPosition().y-mwid));
+        Log.i("MaskImgView: ", "Before:"+dst.toString());
+        // This is to rotate about the Rectangles center
+        /*
+        transform.setRotate(angle, ( eyeLMark.getPosition().x + eyeRMark.getPosition().x)/2,
+                                   ( eyeLMark.getPosition().y + eyeRMark.getPosition().y)/2);
+        transform.mapRect(dst);
+        */
+        Log.i("MaskImgView: ", "After :"+dst.toString());
+        canvas.drawBitmap( mask1Bitmap, null, dst, null );
+    }
+
     private void drawMask(Canvas canvas, int elx , int ely, int erx , int ery, MaskType maskType, double scale){
-        Log.i("MaskImgView: ", " Draw "+maskType.name());
         Rect destBounds = new Rect(elx , ely+((Math.abs(elx-erx))/4) , erx, ery+((Math.abs(elx-erx))/4));
         canvas.drawBitmap( mask1Bitmap, null, destBounds, null );
     }
@@ -125,19 +146,7 @@ public class MaskedImageView extends android.support.v7.widget.AppCompatImageVie
 
     }
 
-    /**
-     * Draws a small circle for each detected landmark, centered at the detected landmark position.
-     * <p>
-     *
-     * Note that eye landmarks are defined to be the midpoint between the detected eye corner
-     * positions, which tends to place the eye landmarks at the lower eyelid rather than at the
-     * pupil position.
-     */
-    private void drawFaceAnnotations(Canvas canvas, double scale) {
 
-
-
-    }
 
     public void noFaces() {
         faces = null;

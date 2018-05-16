@@ -15,12 +15,18 @@
  */
 package edu.ucsb.ece.ece150.maskme;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.support.v4.content.res.ResourcesCompat;
 
 import edu.ucsb.ece.ece150.maskme.camera.GraphicOverlay;
 import com.google.android.gms.vision.face.Face;
+import com.google.android.gms.vision.face.Landmark;
 
 /**
  * Graphic instance for rendering face position, orientation, and landmarks within an associated
@@ -52,8 +58,32 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     private int mFaceId;
     private float mFaceHappiness;
 
+    Bitmap mBitmap;
+
     FaceGraphic(GraphicOverlay overlay) {
         super(overlay);
+
+        mCurrentColorIndex = (mCurrentColorIndex + 1) % COLOR_CHOICES.length;
+        final int selectedColor = COLOR_CHOICES[mCurrentColorIndex];
+
+        mFacePositionPaint = new Paint();
+        mFacePositionPaint.setColor(selectedColor);
+
+        mIdPaint = new Paint();
+        mIdPaint.setColor(selectedColor);
+        mIdPaint.setTextSize(ID_TEXT_SIZE);
+
+        mBoxPaint = new Paint();
+        mBoxPaint.setColor(selectedColor);
+        mBoxPaint.setStyle(Paint.Style.STROKE);
+        mBoxPaint.setStrokeWidth(BOX_STROKE_WIDTH);
+    }
+
+
+    FaceGraphic(GraphicOverlay overlay, Bitmap msBitmap) {
+        super(overlay);
+
+        mBitmap = msBitmap;
 
         mCurrentColorIndex = (mCurrentColorIndex + 1) % COLOR_CHOICES.length;
         final int selectedColor = COLOR_CHOICES[mCurrentColorIndex];
@@ -112,5 +142,14 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         float right = x + xOffset;
         float bottom = y + yOffset;
         canvas.drawRect(left, top, right, bottom, mBoxPaint);
+
+        /*
+        Landmark noseMark = face.getLandmarks().get(Landmark.NOSE_BASE);
+        Rect destBounds = new Rect( (int)(noseMark.getPosition().x-10),
+                                    (int)(noseMark.getPosition().y+10),
+                                    (int)(noseMark.getPosition().x+10),
+                                    (int)(noseMark.getPosition().y-10));
+        canvas.drawBitmap( mBitmap, null, destBounds, null );
+        */
     }
 }

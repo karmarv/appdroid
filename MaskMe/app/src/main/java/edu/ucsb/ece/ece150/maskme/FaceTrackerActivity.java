@@ -9,9 +9,12 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.SparseArray;
@@ -66,6 +69,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     private Button mRightButton;
 
     private FaceDetector mStaticFaceDetector;
+
+    private Bitmap smilesBitmap;
 
     //==============================================================================================
     // Activity Methods
@@ -151,6 +156,9 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         mImageView = new MaskedImageView(getApplicationContext());
         mImageView.setScaleType(ImageView.ScaleType.FIT_XY);
+
+        //Drawable mDrawable = ResourcesCompat.getDrawable(getResources(), R.drawable.smiles, null);
+        //smilesBitmap = ((BitmapDrawable) mDrawable).getBitmap();
 
         // Check for the camera permission before accessing the camera.  If the
         // permission is not granted yet, request permission.
@@ -389,7 +397,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         GraphicFaceTracker(GraphicOverlay overlay) {
             mOverlay = overlay;
-            mFaceGraphic = new FaceGraphic(overlay);
+            mFaceGraphic = new FaceGraphic(overlay, smilesBitmap);
         }
 
         /**
