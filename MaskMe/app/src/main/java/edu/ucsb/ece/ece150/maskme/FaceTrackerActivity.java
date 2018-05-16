@@ -73,7 +73,6 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
     private FaceDetector mStaticFaceDetector;
 
-    private Bitmap smilesBitmap;
 
     //==============================================================================================
     // Activity Methods
@@ -102,8 +101,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
                             @Override
                             public void onPictureTaken(byte[] data) {
                                 Log.i("FaceTrakAct: onPicT:",""+data.length);
-                                //mCapturedImage = BitmapFactory.decodeByteArray(data, 0, data.length);
-								mCapturedImage = rotateImage(BitmapFactory.decodeByteArray(data, 0, data.length),isPortrait?90:180);
+                                mCapturedImage = BitmapFactory.decodeByteArray(data, 0, data.length);
+								//mCapturedImage = rotateImage(BitmapFactory.decodeByteArray(data, 0, data.length),isPortrait?90:180);
                                 mImageView.setImageBitmap(mCapturedImage);
                             }
                         });
@@ -396,7 +395,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
         @Override
         public Tracker<Face> create(Face face) {
-            return new GraphicFaceTracker(mGraphicOverlay, smilesBitmap);
+            return new GraphicFaceTracker(mGraphicOverlay);
         }
     }
 
@@ -409,11 +408,6 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         private FaceGraphic mFaceGraphic;
 
         GraphicFaceTracker(GraphicOverlay overlay) {
-            mOverlay = overlay;
-            mFaceGraphic = new FaceGraphic(overlay);
-        }
-
-        GraphicFaceTracker(GraphicOverlay overlay, Bitmap maskBitmap) {
             mOverlay = overlay;
             Bitmap bitmap = BitmapFactory.decodeResource(getResources(),R.drawable.smiles);
             Bitmap mBitmap = Bitmap.createScaledBitmap(bitmap, 50,50, false);
