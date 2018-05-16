@@ -23,10 +23,13 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.v4.content.res.ResourcesCompat;
+import android.util.Log;
 
 import edu.ucsb.ece.ece150.maskme.camera.GraphicOverlay;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.Landmark;
+
+import java.util.Random;
 
 /**
  * Graphic instance for rendering face position, orientation, and landmarks within an associated
@@ -58,7 +61,7 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     private int mFaceId;
     private float mFaceHappiness;
 
-    Bitmap mBitmap;
+    private Bitmap mBitmap;
 
     FaceGraphic(GraphicOverlay overlay) {
         super(overlay);
@@ -128,6 +131,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         // Draws a circle at the position of the detected face, with the face's track id below.
         float x = translateX(face.getPosition().x + face.getWidth() / 2);
         float y = translateY(face.getPosition().y + face.getHeight() / 2);
+        canvas.drawBitmap(mBitmap,x-25,y,mFacePositionPaint);
+/*
         canvas.drawCircle(x, y, FACE_POSITION_RADIUS, mFacePositionPaint);
         canvas.drawText("id: " + mFaceId, x + ID_X_OFFSET, y + ID_Y_OFFSET, mIdPaint);
         canvas.drawText("happiness: " + String.format("%.2f", face.getIsSmilingProbability()), x - ID_X_OFFSET, y - ID_Y_OFFSET, mIdPaint);
@@ -142,14 +147,6 @@ class FaceGraphic extends GraphicOverlay.Graphic {
         float right = x + xOffset;
         float bottom = y + yOffset;
         canvas.drawRect(left, top, right, bottom, mBoxPaint);
-
-        /*
-        Landmark noseMark = face.getLandmarks().get(Landmark.NOSE_BASE);
-        Rect destBounds = new Rect( (int)(noseMark.getPosition().x-10),
-                                    (int)(noseMark.getPosition().y+10),
-                                    (int)(noseMark.getPosition().x+10),
-                                    (int)(noseMark.getPosition().y-10));
-        canvas.drawBitmap( mBitmap, null, destBounds, null );
-        */
+*/
     }
 }

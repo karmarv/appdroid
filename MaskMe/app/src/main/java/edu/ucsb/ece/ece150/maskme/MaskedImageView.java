@@ -97,22 +97,41 @@ public class MaskedImageView extends android.support.v7.widget.AppCompatImageVie
         mPaint.setStrokeWidth(5);
 
         // 2. get positions of faces and draw masks on faces.
+        // 2. get positions of faces and draw masks on faces.
         Log.i("MaskImgView: ","Faces: "+ faces.size());
         for (int i = 0; i < faces.size(); ++i) {
             Face face = faces.valueAt(i);
-            Log.i("MaskImgView: ",i+".) Landmarks: "+ face.getLandmarks().size());
-            if(face.getLandmarks().size()>0) {
-                Landmark eyeLMark = face.getLandmarks().get(Landmark.LEFT_EYE);
-                canvas.drawCircle((float) (eyeLMark.getPosition().x * scale), (float) (eyeLMark.getPosition().y * scale), 10, mPaint);
-
-                Landmark eyeRMark = face.getLandmarks().get(Landmark.RIGHT_EYE);
-                canvas.drawCircle((float) (eyeRMark.getPosition().x * scale), (float) (eyeRMark.getPosition().y * scale), 10, mPaint);
-
-                Log.i("MaskImgView: ", " Draw " + maskType.name());
-                //drawEyeMask(canvas, eyeLMark, eyeRMark, face.getEulerZ(), scale);
+            int elx=0, ely=0, erx=0, ery=0;
+            for (Landmark landmark : face.getLandmarks()) {
+                if(landmark.getType() == 10) {
+                    erx = (int) (landmark.getPosition().x * scale);
+                    ery = (int) (landmark.getPosition().y * scale);
+                    Log.i("MaskImgView: ", "Draw at (" + erx + ", " + ery + "), LandmarkType:" + landmark.getType());
+                    canvas.drawCircle(erx, ery, 10, mPaint);
+                }else if(landmark.getType() == 4){
+                    elx = (int) (landmark.getPosition().x * scale);
+                    ely = (int) (landmark.getPosition().y * scale);
+                    Log.i("MaskImgView: ", "Draw at (" + elx + ", " + ely + "), LandmarkType:" + landmark.getType());
+                    canvas.drawCircle(elx, ely, 10, mPaint);
+                }
             }
+            drawMask(canvas,elx, ely, erx, ery, MaskType.FIRST, scale, face.getEulerZ());
         }
     }
+
+
+    private void drawMask(Canvas canvas, int elx , int ely, int erx , int ery, MaskType maskType, double scale, float faceAngle){
+        Log.i("MaskImgView: ", " Draw "+maskType.name());
+        Matrix tranform = new Matrix();
+        RectF destBounds = new RectF(elx+30 , ely-60 , erx-30, ery+60);
+        Log.i("MaskImgView: ", "Before Draw "+destBounds.toString());
+        tranform.setRotate(faceAngle, destBounds.centerX(), destBounds.centerY());
+        tranform.mapRect(destBounds);
+        Log.i("MaskImgView: ", "after Draw "+destBounds.toString());
+        canvas.drawBitmap( mask1Bitmap, null, destBounds, null );
+    }
+
+
 
     private void drawEyeMask(Canvas canvas, Landmark eyeLMark, Landmark eyeRMark, float angle, double scale){
         Log.i("MaskImgView: ", "Face Angle: "+ angle);

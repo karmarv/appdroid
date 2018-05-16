@@ -7,10 +7,8 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -253,7 +251,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
                 new MultiProcessor.Builder<>(new GraphicFaceTrackerFactory())
                         .build());
         // 7. Check if the real time detector is operational
-        if (detector.isOperational()) {
+        if (!detector.isOperational()) {
             // Note: The first time that an app using face API is installed on a device, GMS will
             // download a native library to the device in order to do detection.  Usually this
             // completes before the app is run for the first time.  But if that download has not yet
@@ -415,8 +413,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         GraphicFaceTracker(GraphicOverlay overlay, Bitmap maskBitmap) {
             mOverlay = overlay;
-            Bitmap bitmap = BitmapFactory.decodeResource(getResources(),R.drawable.smiles);
-            Bitmap mBitmap = Bitmap.createScaledBitmap(bitmap, 50,50, false);
+            mBitmap = Bitmap.createScaledBitmap(maskBitmap, 50,50, false);
             mFaceGraphic = new FaceGraphic(overlay, mBitmap);
         }
 
