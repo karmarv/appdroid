@@ -51,22 +51,21 @@ class FirebaseManager {
   }
 
   // Names of the nodes used in the Firebase Database
-  private static final String ROOT_FIREBASE_NOTIFICATIONS = "notifications_list";
   private static final String ROOT_FIREBASE_HOTSPOTS = "hotspot_list";
   private static final String ROOT_LAST_ROOM_CODE = "last_room_code";
 
   // Some common keys and values used when writing to the Firebase Database.
+  private static final String KEY_IDENTIFY_STATUS = "identify_status";
+  private static final String KEY_NOTIFICATION_STATUS = "notification_status";
+  private static final String KEY_NOTIFICATION_MSG = "notification_msg";
   private static final String KEY_DISPLAY_NAME = "display_name";
   private static final String KEY_ANCHOR_ID = "hosted_anchor_id";
-  private static final String KEY_ANCHOR_MESSAGE = "hosted_anchor_message";
   private static final String KEY_TIMESTAMP = "updated_at_timestamp";
-  private static final String DISPLAY_NAME_VALUE = "Cloud Anchor";
+  private static final String DISPLAY_NAME_VALUE = "Hunt AR App";
 
   private final FirebaseApp app;
   private final DatabaseReference hotspotListRef;
   private final DatabaseReference roomCodeRef;
-  private final DatabaseReference notificationsListRef;
-
   private DatabaseReference currentRoomRef = null;
   private ValueEventListener currentRoomListener = null;
 
@@ -81,19 +80,18 @@ class FirebaseManager {
       DatabaseReference rootRef = FirebaseDatabase.getInstance(app).getReference();
       hotspotListRef = rootRef.child(ROOT_FIREBASE_HOTSPOTS);
       roomCodeRef = rootRef.child(ROOT_LAST_ROOM_CODE);
-      notificationsListRef = rootRef.child(ROOT_FIREBASE_NOTIFICATIONS);
+
       DatabaseReference.goOnline();
     } else {
       Log.d(TAG, "Could not connect to Firebase Database!");
       hotspotListRef = null;
       roomCodeRef = null;
-      notificationsListRef = null;
     }
   }
 
   /**
-   * Gets a new room code from the Firebase Database. Invokes the listener method when a new room
-   * code is available.
+   * Gets a new room code from the Firebase Database.
+   * Invokes the listener method when a new room code is available.
    */
   void getNewRoomCode(RoomCodeListener listener) {
     Preconditions.checkNotNull(app, "Firebase App was null");
@@ -124,12 +122,14 @@ class FirebaseManager {
   }
 
   /** Stores the given anchor ID in the given room code. */
-  void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId, String anchorMessage) {
+  void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId) {
     Preconditions.checkNotNull(app, "Firebase App was null");
     DatabaseReference roomRef = hotspotListRef.child(String.valueOf(roomCode));
     roomRef.child(KEY_DISPLAY_NAME).setValue(DISPLAY_NAME_VALUE);
     roomRef.child(KEY_ANCHOR_ID).setValue(cloudAnchorId);
-    roomRef.child(KEY_ANCHOR_MESSAGE).setValue(anchorMessage);
+    roomRef.child(KEY_NOTIFICATION_MSG).setValue("Notification: You should look for treasure id "+roomCode);
+    roomRef.child(KEY_NOTIFICATION_STATUS).setValue("Created"); // Created -> Read -> Started
+    roomRef.child(KEY_IDENTIFY_STATUS).setValue("None");
     roomRef.child(KEY_TIMESTAMP).setValue(Long.valueOf(System.currentTimeMillis()));
   }
 

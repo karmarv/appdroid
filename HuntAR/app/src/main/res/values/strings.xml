@@ -16,7 +16,7 @@
 -->
 <resources>
   <!-- Strings in the main activity -->
-  <string name="app_name">Cloud Anchor Example</string>
+  <string name="app_name">HuntAR</string>
   <string name="cancel">Cancel</string>
   <string name="host_button_text">Host</string>
   <string name="host_dialog_title">Host an Anchor</string>
@@ -46,4 +46,23 @@
   <string name="snackbar_resolve_error">Resolving Error: %1$s</string>
   <string name="snackbar_resolve_success">The anchor was successfully resolved.</string>
   <string name="snackbar_room_code_available">The room code is now available. Please place an anchor to host.</string>
+
+  <!-- Messaging string -->
+  <string name="quickstart_message">Click the SUBSCRIBE TO NEWS button below to subscribe to the
+        news topic. Messages sent to the news topic will be received. The LOG TOKEN button logs the
+        InstanceID token to logcat.</string>
+  <string name="subscribe_to_news">Sub</string>
+  <string name="log_token">Log</string>
+
+  <string name="msg_subscribed">Subscribed to news topic</string>
+  <string name="msg_token_fmt" translatable="false">InstanceID Token: %s</string>
+
+  <string name="default_notification_channel_id" translatable="false">fcm_default_channel</string>
+  <!--
+      This is the name that users will see when interacting with this channel.
+      It should describe the category of notifications that will be sent through this channel
+   -->
+  <string name="default_notification_channel_name" translatable="true">News</string>
+  <string name="msg_subscribe_failed">Failed to subscribe to news topic</string>
+
 </resources>
