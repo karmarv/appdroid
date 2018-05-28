@@ -4,10 +4,12 @@ import android.util.Log;
 
 import com.firebase.jobdispatcher.JobParameters;
 import com.firebase.jobdispatcher.JobService;
+import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
 
 public class MyJobService extends JobService {
 
-    private static final String TAG = "MyJobService";
+    private static final String TAG = CloudAnchorActivity.class.getSimpleName() + "."
+            + MyJobService.class.getSimpleName();
 
     @Override
     public boolean onStartJob(JobParameters jobParameters) {

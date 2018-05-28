@@ -18,6 +18,11 @@ using the ARCore Cloud Service.
 ##### Firebase for storing the room Id & notifications
 https://console.firebase.google.com/u/0/project/huntar-88a42/database/huntar-88a42/data
 
+###### Ref
+- https://www.codementor.io/flame3/send-push-notifications-to-android-with-firebase-du10860kb
+- https://firebase.google.com/docs/cloud-messaging/android/client
+- https://codelabs.developers.google.com/codelabs/firebase-android/#5
+- https://github.com/firebase/quickstart-android/blob/master/messaging/app/src/main/java/com/google/firebase/quickstart/fcm/MainActivity.java
 
 ## Reference
 - cloud-anchor-java projects in https://github.com/google-ar/arcore-android-sdk

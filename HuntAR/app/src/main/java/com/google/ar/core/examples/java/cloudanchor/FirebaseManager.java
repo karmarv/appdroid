@@ -82,6 +82,7 @@ class FirebaseManager {
       roomCodeRef = rootRef.child(ROOT_LAST_ROOM_CODE);
 
       DatabaseReference.goOnline();
+      Log.d(TAG, "Successfully connected to Firebase Database!");
     } else {
       Log.d(TAG, "Could not connect to Firebase Database!");
       hotspotListRef = null;

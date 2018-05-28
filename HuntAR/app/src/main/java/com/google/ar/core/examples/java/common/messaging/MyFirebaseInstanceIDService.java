@@ -18,13 +18,15 @@ package com.google.ar.core.examples.java.common.messaging;
 
 import android.util.Log;
 
+import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
 
 public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
 
-    private static final String TAG = "MyFirebaseIIDService";
+    private static final String TAG =  CloudAnchorActivity.class.getSimpleName() + "."
+            + MyFirebaseInstanceIDService.class.getSimpleName();
 
     /**
      * Called if InstanceID token is updated. This may occur if the security of

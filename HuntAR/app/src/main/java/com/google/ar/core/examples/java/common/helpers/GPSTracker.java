@@ -20,6 +20,9 @@ import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
 
 public class GPSTracker extends Service implements LocationListener {
 
+    private static final String TAG =  CloudAnchorActivity.class.getSimpleName() + "."
+            + GPSTracker.class.getSimpleName();
+
     private final Context mContext;
 
     // Flag for GPS status
@@ -66,14 +69,14 @@ public class GPSTracker extends Service implements LocationListener {
 
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                         && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    Log.e("GpsTracker","Permission is not provided for GPS", new Exception());
+                    Log.e(TAG,"Permission is not provided for GPS", new Exception());
                 }
                 if (isNetworkEnabled) {
                     locationManager.requestLocationUpdates(
                             LocationManager.NETWORK_PROVIDER,
                             MIN_TIME_BW_UPDATES,
                             MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
-                    Log.d("Network", "Network");
+                    Log.d(TAG, "Network");
                     if (locationManager != null) {
                         location = locationManager
                                 .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
@@ -90,7 +93,7 @@ public class GPSTracker extends Service implements LocationListener {
                                 LocationManager.GPS_PROVIDER,
                                 MIN_TIME_BW_UPDATES,
                                 MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
-                        Log.d("GPS Enabled", "GPS Enabled");
+                        Log.d(TAG, "GPS Enabled");
                         if (locationManager != null) {
                             location = locationManager
                                     .getLastKnownLocation(LocationManager.GPS_PROVIDER);

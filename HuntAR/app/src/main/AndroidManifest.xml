@@ -18,10 +18,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.google.ar.core.examples.java.cloudanchor">
 
+  <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-  <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
 
   <!-- This tag indicates that this application requires ARCore.  This results in the application
        only being visible in the Google Play Store on devices that support ARCore. -->
@@ -50,16 +53,22 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
+
     <!-- This tag indicates that this application requires ARCore.  This results in the Google Play
          Store downloading and installing ARCore along with the application.
          Application code must still call ArCoreApk.requestInstall() before beginning an ARCore
          sessions, in case the user uninstalls ARCore for any reason. -->
     <meta-data android:name="com.google.ar.core" android:value="required" />
 
-
     <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
         android:value="@string/default_notification_channel_id"/>
+    <meta-data
+      android:name="com.google.firebase.messaging.default_notification_icon"
+      android:resource="@drawable/ic_stat_ic_notification" />
+    <meta-data
+        android:name="com.google.firebase.messaging.default_notification_color"
+        android:resource="@color/colorAccent" />
 
     <!-- [START firebase_service] -->
     <service

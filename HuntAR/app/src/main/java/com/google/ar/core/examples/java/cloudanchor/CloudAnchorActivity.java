@@ -16,15 +16,21 @@
 
 package com.google.ar.core.examples.java.cloudanchor;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.GuardedBy;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -54,6 +60,7 @@ import com.google.ar.core.examples.java.common.helpers.AppPermissionHelper;
 import com.google.ar.core.examples.java.common.helpers.DisplayRotationHelper;
 import com.google.ar.core.examples.java.common.helpers.FullScreenHelper;
 import com.google.ar.core.examples.java.common.helpers.SnackbarHelper;
+import com.google.ar.core.examples.java.common.messaging.MyFirebaseMessagingService;
 import com.google.ar.core.examples.java.common.rendering.BackgroundRenderer;
 import com.google.ar.core.examples.java.common.rendering.ObjectRenderer;
 import com.google.ar.core.examples.java.common.rendering.ObjectRenderer.BlendMode;
@@ -65,11 +72,15 @@ import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
-import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+
+
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.UUID;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -81,169 +92,260 @@ import javax.microedition.khronos.opengles.GL10;
  * anchors.
  */
 public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
-  private static final String TAG = CloudAnchorActivity.class.getSimpleName();
+    private static final String TAG = CloudAnchorActivity.class.getSimpleName();
 
-  private enum HostResolveMode {
-    NONE,
-    HOSTING,
-    RESOLVING,
-  }
-
-  // Rendering. The Renderers are created here, and initialized when the GL surface is created.
-  private GLSurfaceView surfaceView;
-  private final BackgroundRenderer backgroundRenderer = new BackgroundRenderer();
-  private final ObjectRenderer virtualObject = new ObjectRenderer();
-  private final ObjectRenderer virtualObjectShadow = new ObjectRenderer();
-  private final PlaneRenderer planeRenderer = new PlaneRenderer();
-  private final PointCloudRenderer pointCloudRenderer = new PointCloudRenderer();
-
-  private boolean installRequested;
-
-  // Temporary matrices allocated here to reduce number of allocations for each frame.
-  private final float[] anchorMatrix = new float[16];
-  private final float[] viewMatrix = new float[16];
-  private final float[] projectionMatrix = new float[16];
-
-  // Locks needed for synchronization
-  private final Object singleTapLock = new Object();
-  private final Object anchorLock = new Object();
-
-  // Tap handling and UI.
-  private GestureDetector gestureDetector;
-  private final SnackbarHelper snackbarHelper = new SnackbarHelper();
-  private DisplayRotationHelper displayRotationHelper;
-  private Button hostButton;
-  private Button resolveButton;
-  private TextView roomCodeText;
-
-  @GuardedBy("singleTapLock")
-  private MotionEvent queuedSingleTap;
-
-  private Session session;
-
-  @GuardedBy("anchorLock")
-  private Anchor anchor;
-
-  // Cloud Anchor Components.
-  private FirebaseManager firebaseManager;
-  private final CloudAnchorManager cloudManager = new CloudAnchorManager();
-  private HostResolveMode currentMode;
-  private RoomCodeAndCloudAnchorIdListener hostListener;
-
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    setContentView(R.layout.activity_main);
-    surfaceView = findViewById(R.id.surfaceview);
-    displayRotationHelper = new DisplayRotationHelper(this);
-
-    // Register the notification handler
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      // Create channel to show notifications.
-      String channelId  = getString(R.string.default_notification_channel_id);
-      String channelName = getString(R.string.default_notification_channel_name);
-      NotificationManager notificationManager =
-              getSystemService(NotificationManager.class);
-      notificationManager.createNotificationChannel(new NotificationChannel(channelId,
-              channelName, NotificationManager.IMPORTANCE_LOW));
+    private enum HostResolveMode {
+        NONE,
+        HOSTING,
+        RESOLVING,
     }
 
-      // If a notification message is tapped, any data accompanying the notification
-      // message is available in the intent extras. In this sample the launcher
-      // intent is fired when the notification is tapped, so any accompanying data would
-      // be handled here. If you want a different intent fired, set the click_action
-      // field of the notification message to the desired intent. The launcher intent
-      // is used when no click_action is specified.
-      //
-      // Handle possible data accompanying notification message.
-      // [START handle_data_extras]
-      if (getIntent().getExtras() != null) {
-          for (String key : getIntent().getExtras().keySet()) {
-              Object value = getIntent().getExtras().get(key);
-              Log.d(TAG, "Key: " + key + " Value: " + value);
-          }
-      }
-      // [END handle_data_extras]
+    // Rendering. The Renderers are created here, and initialized when the GL surface is created.
+    private GLSurfaceView surfaceView;
+    private final BackgroundRenderer backgroundRenderer = new BackgroundRenderer();
+    private final ObjectRenderer virtualObject = new ObjectRenderer();
+    private final ObjectRenderer virtualObjectShadow = new ObjectRenderer();
+    private final PlaneRenderer planeRenderer = new PlaneRenderer();
+    private final PointCloudRenderer pointCloudRenderer = new PointCloudRenderer();
 
-      Button subscribeButton = findViewById(R.id.subscribeButton);
-      subscribeButton.setOnClickListener(new View.OnClickListener() {
-          @Override
-          public void onClick(View v) {
-              Log.d(TAG, "Subscribing to news topic");
-              // [START subscribe_topics]
-              FirebaseMessaging.getInstance().subscribeToTopic("news")
-                      .addOnCompleteListener(new OnCompleteListener<Void>() {
-                          @Override
-                          public void onComplete(@NonNull Task<Void> task) {
-                              String msg = getString(R.string.msg_subscribed);
-                              if (!task.isSuccessful()) {
-                                  msg = getString(R.string.msg_subscribe_failed);
-                              }
-                              Log.d(TAG, msg);
-                              Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
-                          }
-                      });
-              // [END subscribe_topics]
-          }
-      });
+    private boolean installRequested;
 
-      Button logTokenButton = findViewById(R.id.logTokenButton);
-      logTokenButton.setOnClickListener(new View.OnClickListener() {
-          @Override
-          public void onClick(View v) {
-              // Get token
-              String token = FirebaseInstanceId.getInstance().getToken();
+    // Temporary matrices allocated here to reduce number of allocations for each frame.
+    private final float[] anchorMatrix = new float[16];
+    private final float[] viewMatrix = new float[16];
+    private final float[] projectionMatrix = new float[16];
 
-              // Log and toast
-              String msg = getString(R.string.msg_token_fmt, token);
-              Log.d(TAG, msg);
-              Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
-          }
-      });
+    // Locks needed for synchronization
+    private final Object singleTapLock = new Object();
+    private final Object anchorLock = new Object();
 
-    // ---------------------------------------------------------------------------------------------
+    // Tap handling and UI.
+    private GestureDetector gestureDetector;
+    private final SnackbarHelper snackbarHelper = new SnackbarHelper();
+    private DisplayRotationHelper displayRotationHelper;
+    private Button hostButton;
+    private Button resolveButton;
+    private TextView roomCodeText;
 
-    // Set up tap listener.
-    gestureDetector =
-        new GestureDetector(
-            this,
-            new GestureDetector.SimpleOnGestureListener() {
-              @Override
-              public boolean onSingleTapUp(MotionEvent e) {
-                synchronized (singleTapLock) {
-                  if (currentMode == HostResolveMode.HOSTING) {
-                    queuedSingleTap = e;
-                  }
-                }
-                return true;
-              }
+    @GuardedBy("singleTapLock")
+    private MotionEvent queuedSingleTap;
 
-              @Override
-              public boolean onDown(MotionEvent e) {
-                return true;
-              }
-            });
-    surfaceView.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+    private Session session;
 
-    // Set up renderer.
-    surfaceView.setPreserveEGLContextOnPause(true);
-    surfaceView.setEGLContextClientVersion(2);
-    surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
-    surfaceView.setRenderer(this);
-    surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-    installRequested = false;
+    @GuardedBy("anchorLock")
+    private Anchor anchor;
 
-    // Initialize UI components.
-    hostButton = findViewById(R.id.host_button);
-    hostButton.setOnClickListener((view) -> onHostButtonPress());
-    resolveButton = findViewById(R.id.resolve_button);
-    resolveButton.setOnClickListener((view) -> onResolveButtonPress());
-    roomCodeText = findViewById(R.id.room_code_text);
+    // Cloud Anchor Components.
+    private FirebaseManager firebaseManager;
+    private final CloudAnchorManager cloudManager = new CloudAnchorManager();
+    private HostResolveMode currentMode;
+    private RoomCodeAndCloudAnchorIdListener hostListener;
 
-    // Initialize Cloud Anchor variables.
-    firebaseManager = new FirebaseManager(this);
-    currentMode = HostResolveMode.NONE;
+    // Firebase Messaging
+    private String fireToken;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        // Initialize the surface
+        surfaceView = findViewById(R.id.surfaceview);
+        displayRotationHelper = new DisplayRotationHelper(this);
+        /**
+         *  -------------------------------------ARCORE---------------------------------------------
+         */
+        // Set up tap listener.
+        gestureDetector =
+                new GestureDetector(
+                        this,
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override
+                            public boolean onSingleTapUp(MotionEvent e) {
+                                synchronized (singleTapLock) {
+                                    if (currentMode == HostResolveMode.HOSTING) {
+                                        queuedSingleTap = e;
+                                    }
+                                }
+                                return true;
+                            }
+
+                            @Override
+                            public boolean onDown(MotionEvent e) {
+                                return true;
+                            }
+                        });
+        surfaceView.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+
+        // Set up renderer.
+        surfaceView.setPreserveEGLContextOnPause(true);
+        surfaceView.setEGLContextClientVersion(2);
+        surfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
+        surfaceView.setRenderer(this);
+        surfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        installRequested = false;
+
+        // Initialize UI components.
+        hostButton = findViewById(R.id.host_button);
+        hostButton.setOnClickListener((view) -> onHostButtonPress());
+        resolveButton = findViewById(R.id.resolve_button);
+        resolveButton.setOnClickListener((view) -> onResolveButtonPress());
+        roomCodeText = findViewById(R.id.room_code_text);
+
+        // Initialize Cloud Anchor variables.
+        firebaseManager = new FirebaseManager(this);
+        currentMode = HostResolveMode.NONE;
+
+        // Initialize Firebase messaging
+        initializeFirebaseMessagingOnCreate();
+    }
+
+    /**
+     * -------------------------------NOTIFICATION------------------------------------------------
+     */
+    protected void initializeFirebaseMessagingOnCreate() {
+
+        // Firebase service account
+        // firebase-adminsdk-uw4ag@huntar-88a42.iam.gserviceaccount.com
+
+        /*
+        try {
+            FileInputStream serviceAccount = new FileInputStream("huntar-88a42-firebase-adminsdk-uw4ag-243c9cde06.json");
+            FirebaseOptions options = new FirebaseOptions.Builder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    //.setCredentials(GoogleCredentials.getApplicationDefault())
+                    .setDatabaseUrl("https://huntar-88a42.firebaseio.com") //https://huntar-88a42.firebaseio.com/
+                    .build();
+            FirebaseApp.initializeApp(options);
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage());
+        }
+        */
+
+        subscribeNotifications();
+
+        // If a notification message is tapped, any data accompanying the notification
+        // message is available in the intent extras. In this sample the launcher
+        // intent is fired when the notification is tapped, so any accompanying data would
+        // be handled here. If you want a different intent fired, set the click_action
+        // field of the notification message to the desired intent. The launcher intent
+        // is used when no click_action is specified.
+        //
+        // Handle possible data accompanying notification message.
+        // [START handle_data_extras]
+        if (getIntent().getExtras() != null) {
+            for (String key : getIntent().getExtras().keySet()) {
+                Object value = getIntent().getExtras().get(key);
+                Log.d(TAG, "Key: " + key + " Value: " + value);
+            }
+        }
+        // [END handle_data_extras]
+
+        Button logTokenButton = findViewById(R.id.logTokenButton);
+        logTokenButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Get token
+                fireToken = ""; // FirebaseInstanceId.getInstance().getToken();
+                // fireToken = "fiDmOSQIya4:APA91bEpYwqJ1xgxTwFhP2mDUqIJhP3strLdoW3SGgKjr4j5pF64IbPIRvlZk9T1ozVo91uZpMDHskl3U2dqi4PIgo4O4ocl2PGdlt8BYuvHKWe43IBoNIHKHucXBpepddv3KJKAWVGW";
+
+                String msg = getString(R.string.msg_token_fmt, fireToken);
+                Log.d(TAG, msg);
+                Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+
+    private String getUniquePhoneId() {
+        final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService(Context.TELEPHONY_SERVICE);
+
+        final String tmDevice, tmSerial, androidId;
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this, new String[] {android.Manifest.permission.READ_PHONE_STATE}, 2);
+        }
+        tmDevice = "" + tm.getDeviceId();
+        tmSerial = "" + tm.getSimSerialNumber();
+        androidId = "" + android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+        UUID deviceUuid = new UUID(androidId.hashCode(), ((long)tmDevice.hashCode() << 32) | tmSerial.hashCode());
+        String deviceId = deviceUuid.toString();
+        return deviceId;
   }
+
+  private void sendUpstreamMessage(){
+        /* Ref: https://firebase.google.com/docs/cloud-messaging/android/topic-messaging
+
+        POST https://fcm.googleapis.com/v1/projects/myproject-b5ae1/messages:send HTTP/1.1
+        Content-Type: application/json
+        Authorization: Bearer ya29.ElqKBGN2Ri_Uz...HnS_uNreA
+        {
+          "message":{
+            "topic" : "foo-bar",
+            "notification" : {
+              "body" : "This is a Firebase Cloud Messaging Topic Message!",
+              "title" : "FCM Message",
+              }
+           }
+        }
+         */
+
+      String channelName = getString(R.string.default_notification_channel_name);
+      // See documentation on defining a message payload.
+      // RemoteMessage.Builder bui = new RemoteMessage.Builder("");
+      /*
+      Message message = Message.builder()
+              //.setNotification()
+              .putData("score", "850")
+              .putData("time", "2:45")
+                . setTopic(channelName)
+              .build();
+      // Send a message to the device corresponding to the provided registration token.
+      String response = null;
+      try {
+          response = FirebaseMessaging.getInstance().send(message);
+          // Response is a message ID string.
+          Log.d(TAG,"Successfully sent message: " + response);
+      } catch (FirebaseMessagingException e) {
+          Log.e(TAG,e.toString());
+      }
+      */
+  }
+
+  private void subscribeNotifications(){
+      String channelId  =  getString(R.string.default_notification_channel_id);
+      String channelName = getString(R.string.default_notification_channel_name);
+      // Register the notification handler
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          Log.i(TAG,"Initialized notification handler");
+          // Create channel to show notifications.
+          NotificationManager notificationManager = getSystemService(NotificationManager.class);
+          // Create the notification message content
+          NotificationChannel mChannel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW);
+          mChannel.setDescription("Treasure local ");
+          mChannel.enableLights(true);
+          mChannel.setLightColor(Color.RED);
+          mChannel.enableVibration(true);
+          mChannel.setVibrationPattern(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
+          notificationManager.createNotificationChannel(mChannel);
+      }
+
+      Log.d(TAG, "Subscribing to news topic");
+      // [START subscribe_topics]
+      FirebaseMessaging.getInstance().subscribeToTopic(channelName)
+              .addOnCompleteListener(new OnCompleteListener<Void>() {
+                  @Override
+                  public void onComplete(@NonNull Task<Void> task) {
+                      String msg = getString(R.string.msg_subscribed);
+                      if (!task.isSuccessful()) {
+                          msg = getString(R.string.msg_subscribe_failed);
+                      }
+                      Log.d(TAG, "Topic: "+channelName+", Message:"+msg);
+                      Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
+                  }
+              });
+      // [END subscribe_topics]
+  }
+
 
   @Override
   protected void onResume() {
@@ -361,7 +463,8 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
       synchronized (anchorLock) {
         // Only handle a tap if the anchor is currently null, the queued tap is non-null and the
         // camera is currently tracking.
-        if (anchor == null && queuedSingleTap != null
+        if (anchor == null
+			&& queuedSingleTap != null
             && cameraTrackingState == TrackingState.TRACKING) {
           Preconditions.checkState(
               currentMode == HostResolveMode.HOSTING,
@@ -369,14 +472,14 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
           for (HitResult hit : frame.hitTest(queuedSingleTap)) {
             if (shouldCreateAnchorWithHit(hit)) {
               Anchor newAnchor = hit.createAnchor();
-              Log.i("AnchorActivity","Create an anchor: "+ newAnchor);
+              //Log.i(TAG,"Create an anchor: "+ newAnchor);
               Preconditions.checkNotNull(hostListener, "The host listener cannot be null.");
               cloudManager.hostCloudAnchor(newAnchor, hostListener);
               setNewAnchor(newAnchor);
               snackbarHelper.showMessage(this, getString(R.string.snackbar_anchor_placed));
               break; // Only handle the first valid hit.
             }else{
-                Log.e("AnchorActivity","Unable to create an anchor ");
+                //Log.e(TAG,"Unable to create an anchor ");
             }
           }
         }
@@ -532,7 +635,7 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
     resolveButton.setEnabled(false);
     hostButton.setText(R.string.cancel);
     snackbarHelper.showMessageWithDismiss(this, getString(R.string.snackbar_on_host));
-
+    Log.i(TAG, "Obtain a new room code and start hosting ");
     hostListener = new RoomCodeAndCloudAnchorIdListener();
     firebaseManager.getNewRoomCode(hostListener);
   }
@@ -605,7 +708,7 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
    * the room code when both are available.
    */
   private final class RoomCodeAndCloudAnchorIdListener
-      implements CloudAnchorManager.CloudAnchorListener, FirebaseManager.RoomCodeListener {
+      implements CloudAnchorManager.CloudAnchorListener, FirebaseManager.RoomCodeListener, MyFirebaseMessagingService.FireNotificationListener {
 
     private Long roomCode;
     private String cloudAnchorId;
@@ -642,7 +745,7 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
             CloudAnchorActivity.this, getString(R.string.snackbar_host_error, cloudState));
         return;
       }else{
-          Log.i("AnchorActivity Listen", "Cloud Anchor is set now");
+          Log.i(TAG, "Cloud Anchor is set now");
       }
       Preconditions.checkState(
           cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
@@ -655,11 +758,23 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
       if (roomCode == null || cloudAnchorId == null) {
         return;
       }
-      Log.i("AnchorActivity Listen", "Store anchor id");
+      Log.i(TAG, "Store anchor id");
       firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId);
-      Log.i("AnchorActivity Listen", "Stored anchor id "+ cloudAnchorId + " in room "+roomCode);
+      Log.i(TAG, "Stored anchor id "+ cloudAnchorId + " in room "+roomCode);
       snackbarHelper.showMessageWithDismiss(
           CloudAnchorActivity.this, getString(R.string.snackbar_cloud_id_shared));
+    }
+
+    /**
+     * Notification from cloud messaging service
+     *
+     * @param notification
+     */
+    @Override
+    public void onFireNotification(String notification) {
+      Log.i(TAG, "From Cloud: "+notification);
+      snackbarHelper.showMessageWithDismiss(
+              CloudAnchorActivity.this, "From Cloud: "+notification);
     }
   }
 }

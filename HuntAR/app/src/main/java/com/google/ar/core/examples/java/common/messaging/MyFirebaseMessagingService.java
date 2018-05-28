@@ -38,7 +38,16 @@ import com.google.firebase.messaging.RemoteMessage;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
-    private static final String TAG = "MyFirebaseMsgService";
+    private static final String TAG = CloudAnchorActivity.class.getSimpleName() + "."
+            + MyFirebaseMessagingService.class.getSimpleName();
+
+
+    /** Listener for the results of a host or resolve operation. */
+    public interface FireNotificationListener {
+
+        /** This method is invoked when the results of a Cloud Anchor operation are available. */
+        void onFireNotification(String notification);
+    }
 
     /**
      * Called when message is received.
@@ -60,7 +69,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         // TODO(developer): Handle FCM messages here.
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
-        Log.d(TAG, "From: " + remoteMessage.getFrom());
+        Log.d(TAG, "Message received from: " + remoteMessage.getFrom());
 
         // Check if message contains a data payload.
         if (remoteMessage.getData().size() > 0) {
@@ -76,11 +85,17 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
         // Check if message contains a notification payload.
         if (remoteMessage.getNotification() != null) {
-            Log.d(TAG, "Message Notification Body: " + remoteMessage.getNotification().getBody());
+            String title = remoteMessage.getNotification().getTitle();
+            String body = remoteMessage.getNotification().getBody();
+            Log.d(TAG, "Message Notification Title: " + title);
+            Log.d(TAG, "Message Notification Body: " + body);
+            /*
+             Also if you intend on generating your own notifications as a result of a received FCM
+             message, here is where that should be initiated. See sendNotification method below.
+             */
+            sendNotification(body, title);
         }
 
-        // Also if you intend on generating your own notifications as a result of a received FCM
-        // message, here is where that should be initiated. See sendNotification method below.
     }
     // [END receive_message]
 
@@ -110,7 +125,8 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      *
      * @param messageBody FCM message body received.
      */
-    private void sendNotification(String messageBody) {
+    private void sendNotification(String messageBody, String messageTitle) {
+        Log.d(TAG, "Message Notification Body: " + messageBody);
         Intent intent = new Intent(this, CloudAnchorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, intent,
@@ -121,7 +137,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         NotificationCompat.Builder notificationBuilder =
                 new NotificationCompat.Builder(this, channelId)
                         .setSmallIcon(R.drawable.ic_stat_ic_notification)
-                        .setContentTitle("FCM Message")
+                        .setContentTitle(messageTitle == null ? "Treasure created now":messageTitle)
                         .setContentText(messageBody)
                         .setAutoCancel(true)
                         .setSound(defaultSoundUri)
@@ -132,12 +148,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         // Since android Oreo notification channel is needed.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelId,
-                    "Channel human readable title",
+            NotificationChannel channel = new NotificationChannel(channelId, "news",
                     NotificationManager.IMPORTANCE_DEFAULT);
             notificationManager.createNotificationChannel(channel);
         }
-
         notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
     }
 }
