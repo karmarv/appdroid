@@ -16,7 +16,6 @@
 
 package com.google.ar.core.examples.java.cloudanchor;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -39,6 +38,10 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.ar.core.Anchor;
@@ -60,6 +63,7 @@ import com.google.ar.core.examples.java.common.helpers.AppPermissionHelper;
 import com.google.ar.core.examples.java.common.helpers.DisplayRotationHelper;
 import com.google.ar.core.examples.java.common.helpers.FullScreenHelper;
 import com.google.ar.core.examples.java.common.helpers.SnackbarHelper;
+import com.google.ar.core.examples.java.common.messaging.AppController;
 import com.google.ar.core.examples.java.common.messaging.MyFirebaseMessagingService;
 import com.google.ar.core.examples.java.common.rendering.BackgroundRenderer;
 import com.google.ar.core.examples.java.common.rendering.ObjectRenderer;
@@ -72,13 +76,16 @@ import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
+import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 
-
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.microedition.khronos.egl.EGLConfig;
@@ -92,7 +99,9 @@ import javax.microedition.khronos.opengles.GL10;
  * anchors.
  */
 public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
+
     private static final String TAG = CloudAnchorActivity.class.getSimpleName();
+    private static String SERVER_API_KEY= "AIzaSyAEZkjyxfBtXdvgFo5toXaoxhS79K4gEVo";
 
     private enum HostResolveMode {
         NONE,
@@ -207,20 +216,6 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         // Firebase service account
         // firebase-adminsdk-uw4ag@huntar-88a42.iam.gserviceaccount.com
 
-        /*
-        try {
-            FileInputStream serviceAccount = new FileInputStream("huntar-88a42-firebase-adminsdk-uw4ag-243c9cde06.json");
-            FirebaseOptions options = new FirebaseOptions.Builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    //.setCredentials(GoogleCredentials.getApplicationDefault())
-                    .setDatabaseUrl("https://huntar-88a42.firebaseio.com") //https://huntar-88a42.firebaseio.com/
-                    .build();
-            FirebaseApp.initializeApp(options);
-        } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
-        }
-        */
-
         subscribeNotifications();
 
         // If a notification message is tapped, any data accompanying the notification
@@ -232,12 +227,12 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         //
         // Handle possible data accompanying notification message.
         // [START handle_data_extras]
-        if (getIntent().getExtras() != null) {
+        /*if (getIntent().getExtras() != null) {
             for (String key : getIntent().getExtras().keySet()) {
                 Object value = getIntent().getExtras().get(key);
                 Log.d(TAG, "Key: " + key + " Value: " + value);
             }
-        }
+        }*/
         // [END handle_data_extras]
 
         Button logTokenButton = findViewById(R.id.logTokenButton);
@@ -245,24 +240,21 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
             @Override
             public void onClick(View v) {
                 // Get token
-                fireToken = ""; // FirebaseInstanceId.getInstance().getToken();
-                // fireToken = "fiDmOSQIya4:APA91bEpYwqJ1xgxTwFhP2mDUqIJhP3strLdoW3SGgKjr4j5pF64IbPIRvlZk9T1ozVo91uZpMDHskl3U2dqi4PIgo4O4ocl2PGdlt8BYuvHKWe43IBoNIHKHucXBpepddv3KJKAWVGW";
-
+                fireToken =  FirebaseInstanceId.getInstance().getToken();
                 String msg = getString(R.string.msg_token_fmt, fireToken);
                 Log.d(TAG, msg);
+                sendUpstreamMessage();
+                // Send out the notification
                 Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-
     private String getUniquePhoneId() {
         final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService(Context.TELEPHONY_SERVICE);
-
         final String tmDevice, tmSerial, androidId;
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                    this, new String[] {android.Manifest.permission.READ_PHONE_STATE}, 2);
+            ActivityCompat.requestPermissions(this, new String[] {android.Manifest.permission.READ_PHONE_STATE}, 2);
         }
         tmDevice = "" + tm.getDeviceId();
         tmSerial = "" + tm.getSimSerialNumber();
@@ -270,45 +262,76 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         UUID deviceUuid = new UUID(androidId.hashCode(), ((long)tmDevice.hashCode() << 32) | tmSerial.hashCode());
         String deviceId = deviceUuid.toString();
         return deviceId;
-  }
+    }
 
-  private void sendUpstreamMessage(){
-        /* Ref: https://firebase.google.com/docs/cloud-messaging/android/topic-messaging
-
-        POST https://fcm.googleapis.com/v1/projects/myproject-b5ae1/messages:send HTTP/1.1
-        Content-Type: application/json
-        Authorization: Bearer ya29.ElqKBGN2Ri_Uz...HnS_uNreA
-        {
-          "message":{
-            "topic" : "foo-bar",
-            "notification" : {
-              "body" : "This is a Firebase Cloud Messaging Topic Message!",
-              "title" : "FCM Message",
+    /**
+     * Send messages to other subscribers for treasure notification.
+     */
+    private void sendUpstreamMessage(){
+        String topicName = getString(R.string.default_notification_channel_name);
+        JSONObject json = new JSONObject();
+        try {
+          /*
+            {
+              "topic": "News",
+              "to": "/topics/News",
+              "token": "",
+              "notification": {
+                "title": "curl FCM Message",
+                "body": "This is a Firebase Cloud Messaging Topic Message!"
+              },
+              "data": {
+                "image": "Image URL"
               }
-           }
+            }
+           */
+          JSONObject notification = new JSONObject();
+            notification.put("title","A treasure has been planted");
+            notification.put("body","Click to start your hunt now");
+          JSONObject data=new JSONObject();
+            data.put("image","https://api.androidhive.info/images/minion.jpg");
+          // Set the json payload
+          json.put("topic", topicName);
+          json.put("to", "/topics/"+topicName);
+          json.put("token", "");
+          json.put("notification",notification);
+          json.put("data",data);
+          Log.i(TAG, "JSON Request : " + json.toString());
         }
-         */
+        catch (JSONException e) {
+          Log.e(TAG,e.getMessage());
+        }
 
-      String channelName = getString(R.string.default_notification_channel_name);
-      // See documentation on defining a message payload.
-      // RemoteMessage.Builder bui = new RemoteMessage.Builder("");
-      /*
-      Message message = Message.builder()
-              //.setNotification()
-              .putData("score", "850")
-              .putData("time", "2:45")
-                . setTopic(channelName)
-              .build();
-      // Send a message to the device corresponding to the provided registration token.
-      String response = null;
-      try {
-          response = FirebaseMessaging.getInstance().send(message);
-          // Response is a message ID string.
-          Log.d(TAG,"Successfully sent message: " + response);
-      } catch (FirebaseMessagingException e) {
-          Log.e(TAG,e.toString());
-      }
-      */
+        /* Ref: https://firebase.google.com/docs/cloud-messaging/android/topic-messaging
+        $ curl -X POST -H "Authorization:key=AIzaSyAEZkjyxfBtXdvgFo5toXaoxhS79K4gEVo" -H "Content-Type: application/json" -d '{ "topic" : "News", "to": "/topics/News","token": "", "notification": { "title": "curl FCM Message", "body": "This is a Firebase Cloud Messaging Topic Message!" }, "data": {"message": "This is a Firebase Cloud Messaging Topic M
+essage!"}}' https://fcm.googleapis.com/fcm/send
+         */
+        try {
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest("https://fcm.googleapis.com/fcm/send",
+                    json, new Response.Listener<JSONObject>() {
+              @Override
+              public void onResponse(JSONObject response) {
+                  Log.i(TAG, "JSON Response: " + response.toString());
+              }
+            }, new Response.ErrorListener() {
+              @Override
+              public void onErrorResponse(VolleyError error) {
+                  Log.i(TAG, "JSON Error: " + error.toString());
+              }
+            }) {
+              @Override
+              public Map<String, String> getHeaders(){
+                  Map<String, String> params = new HashMap<>();
+                  params.put("Authorization", "key=" + SERVER_API_KEY);
+                  params.put("Content-Type", "application/json");
+                  Log.i(TAG, "Params: " + params.toString());
+                  return params;
+              }
+            };
+            AppController.getInstance(this.getApplicationContext()).addToRequestQueue(jsonObjectRequest);
+        } catch (Exception e) {
+            Log.e(TAG,e.getMessage());
+        }
   }
 
   private void subscribeNotifications(){
