@@ -33,12 +33,11 @@ import android.util.Log;
 import com.firebase.jobdispatcher.FirebaseJobDispatcher;
 import com.firebase.jobdispatcher.GooglePlayDriver;
 import com.firebase.jobdispatcher.Job;
-import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
+import com.google.ar.core.examples.java.cloudanchor.HuntTreasureActivity;
 import com.google.ar.core.examples.java.cloudanchor.R;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -49,7 +48,7 @@ import java.net.URL;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
-    private static final String TAG = CloudAnchorActivity.class.getSimpleName() + "."
+    private static final String TAG = HuntTreasureActivity.class.getSimpleName() + "."
             + MyFirebaseMessagingService.class.getSimpleName();
 
 
@@ -82,14 +81,17 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
         Log.d(TAG, "Message received from: " + remoteMessage.getFrom());
         String imageUrl = "";
+        HuntNotification notif = new HuntNotification();
         // Check if message contains a data payload.
         if (remoteMessage.getData().size() > 0) {
             JSONObject json = null;
             try {
-                //json = new JSONObject(remoteMessage.getData().toString());
-                //JSONObject data = json.getJSONObject("data");
+                json = new JSONObject(remoteMessage.getData().toString());
                 Log.i(TAG, "Message data payload: " +remoteMessage.getData());
-                imageUrl = "https://api.androidhive.info/images/minion.jpg";//data.getString("image");
+                JSONObject data = json.getJSONObject("payload");
+                Log.i(TAG, "Extract data: " +data);
+                notif = notif.fromJson(data.toString());
+                Log.i(TAG, "Data parsed: " +notif);
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
             }
@@ -113,7 +115,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
              Also if you intend on generating your own notifications as a result of a received FCM
              message, here is where that should be initiated. See sendNotification method below.
              */
-            sendNotification(body, title, imageUrl);
+            sendNotification(body, title, notif);
         }
 
     }
@@ -163,24 +165,24 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      *
      * @param messageBody FCM message body received.
      */
-    private void sendNotification(String messageBody, String messageTitle, String imageUrl) {
-        Log.d(TAG, "Message Notification Body: " + messageBody);
-        Intent intent = new Intent(this, CloudAnchorActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    private void sendNotification(String messageBody, String messageTitle, HuntNotification notif) {
+        Log.i(TAG, "Notification Body: " + messageBody + ", payload: "+notif.toString());
+        Intent intent = new Intent(this, HuntTreasureActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+        intent.putExtra("data", notif.toJson());
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, intent,
                 PendingIntent.FLAG_ONE_SHOT);
-
-
 
         String channelId = getString(R.string.default_notification_channel_id);
         Uri defaultSoundUri= RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
         NotificationCompat.Builder notificationBuilder = null;
-        if(!imageUrl.isEmpty()) {
+        if(notif != null && notif.getNotificationImageurl() != null) {
+            Log.i(TAG,"Using Image: "+notif.getNotificationImageurl());
             // Image for notification
             NotificationCompat.BigPictureStyle notiStyle = new NotificationCompat.BigPictureStyle();
             notiStyle.setSummaryText(messageBody);
-            notiStyle.bigPicture(getImage(imageUrl));
+            notiStyle.bigPicture(getImage(notif.getNotificationImageurl()));
             notificationBuilder =
                     new NotificationCompat.Builder(this, channelId)
                             .setSmallIcon(R.drawable.ic_stat_ic_notification)
@@ -190,6 +192,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                             .setContentText(messageBody)
                             .setAutoCancel(true)
                             .setSound(defaultSoundUri)
+                            .setVibrate(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400})
                             .setContentIntent(pendingIntent);
         }else{
             notificationBuilder =
@@ -199,6 +202,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                             .setContentText(messageBody)
                             .setAutoCancel(true)
                             .setSound(defaultSoundUri)
+                            .setVibrate(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400})
                             .setContentIntent(pendingIntent);
         }
         NotificationManager notificationManager =

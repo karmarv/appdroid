@@ -30,7 +30,7 @@ import java.util.HashMap;
  */
 class CloudAnchorManager {
   private static final String TAG =
-      CloudAnchorActivity.class.getSimpleName() + "." + CloudAnchorManager.class.getSimpleName();
+      HuntTreasureActivity.class.getSimpleName() + "." + CloudAnchorManager.class.getSimpleName();
 
   /** Listener for the results of a host or resolve operation. */
   interface CloudAnchorListener {

@@ -27,6 +27,9 @@ public final class SnackbarHelper {
   private static final int BACKGROUND_COLOR = 0xbf323232;
   private Snackbar messageSnackbar;
   private enum DismissBehavior { HIDE, SHOW, FINISH };
+  public interface SnackbarListener{
+        void onShareTreasure();
+  }
 
   public boolean isShowing() {
     return messageSnackbar != null;
@@ -40,6 +43,30 @@ public final class SnackbarHelper {
   /** Shows a snackbar with a given message, and a dismiss button. */
   public void showMessageWithDismiss(Activity activity, String message) {
     show(activity, message, DismissBehavior.SHOW);
+  }
+
+  public void showMessageWithAction(final Activity activity, final String message, SnackbarListener callback) {
+      activity.runOnUiThread(
+              new Runnable() {
+                  @Override
+                  public void run() {
+                      messageSnackbar =
+                              Snackbar.make(
+                                      activity.findViewById(android.R.id.content),
+                                      message,
+                                      Snackbar.LENGTH_INDEFINITE);
+                      messageSnackbar.getView().setBackgroundColor(BACKGROUND_COLOR);
+                      messageSnackbar.setAction(
+                              "Share",
+                              new View.OnClickListener() {
+                                  @Override
+                                  public void onClick(View v) {
+                                      callback.onShareTreasure();
+                                  }
+                              });
+                      messageSnackbar.show();
+                  }
+              });
   }
 
   /**

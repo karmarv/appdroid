@@ -19,6 +19,7 @@ package com.google.ar.core.examples.java.cloudanchor;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.opengl.GLES20;
@@ -38,7 +39,6 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -64,6 +64,7 @@ import com.google.ar.core.examples.java.common.helpers.DisplayRotationHelper;
 import com.google.ar.core.examples.java.common.helpers.FullScreenHelper;
 import com.google.ar.core.examples.java.common.helpers.SnackbarHelper;
 import com.google.ar.core.examples.java.common.messaging.AppController;
+import com.google.ar.core.examples.java.common.messaging.HuntNotification;
 import com.google.ar.core.examples.java.common.messaging.MyFirebaseMessagingService;
 import com.google.ar.core.examples.java.common.rendering.BackgroundRenderer;
 import com.google.ar.core.examples.java.common.rendering.ObjectRenderer;
@@ -98,10 +99,9 @@ import javax.microedition.khronos.opengles.GL10;
  * API calls. This app only has at most one anchor at a time, to focus more on the cloud aspect of
  * anchors.
  */
-public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
+public class HuntTreasureActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
 
-    private static final String TAG = CloudAnchorActivity.class.getSimpleName();
-    private static String SERVER_API_KEY= "AIzaSyAEZkjyxfBtXdvgFo5toXaoxhS79K4gEVo";
+    private static final String TAG = HuntTreasureActivity.class.getSimpleName();
 
     private enum HostResolveMode {
         NONE,
@@ -156,10 +156,14 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_hunt_treasure);
         // Initialize the surface
         surfaceView = findViewById(R.id.surfaceview);
         displayRotationHelper = new DisplayRotationHelper(this);
+
+        // Info from the push notification read here
+        onNewIntent(getIntent());
+
         /**
          *  -------------------------------------ARCORE---------------------------------------------
          */
@@ -208,6 +212,22 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         initializeFirebaseMessagingOnCreate();
     }
 
+    @Override
+    public void onNewIntent(Intent intent){
+        Bundle extras = intent.getExtras();
+        if(extras != null){
+            if(extras.containsKey("data"))
+            {
+                HuntNotification  hn = new HuntNotification(0L,"");
+                hn = hn.fromJson(extras.getString("data"));
+                Log.i(TAG, hn.toString());
+                Toast.makeText(HuntTreasureActivity.this, hn.toString(), Toast.LENGTH_LONG).show();
+            }
+        }
+
+
+    }
+
     /**
      * -------------------------------NOTIFICATION------------------------------------------------
      */
@@ -216,7 +236,7 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         // Firebase service account
         // firebase-adminsdk-uw4ag@huntar-88a42.iam.gserviceaccount.com
 
-        subscribeNotifications();
+        firebaseManager.subscribeNotifications(getApplicationContext());
 
         // If a notification message is tapped, any data accompanying the notification
         // message is available in the intent extras. In this sample the launcher
@@ -235,17 +255,18 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         }*/
         // [END handle_data_extras]
 
-        Button logTokenButton = findViewById(R.id.logTokenButton);
-        logTokenButton.setOnClickListener(new View.OnClickListener() {
+        Button notifyHuntersButton = findViewById(R.id.notifyHuntersButton);
+        notifyHuntersButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Get token
                 fireToken =  FirebaseInstanceId.getInstance().getToken();
                 String msg = getString(R.string.msg_token_fmt, fireToken);
-                Log.d(TAG, msg);
-                sendUpstreamMessage();
+                Log.i(TAG, msg);
+                HuntNotification tn = new HuntNotification(0L, "test");
+                firebaseManager.sendUpstreamMessage(getApplicationContext(), tn);
                 // Send out the notification
-                Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
+                Toast.makeText(HuntTreasureActivity.this, msg, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -264,110 +285,6 @@ public class CloudAnchorActivity extends AppCompatActivity implements GLSurfaceV
         return deviceId;
     }
 
-    /**
-     * Send messages to other subscribers for treasure notification.
-     */
-    private void sendUpstreamMessage(){
-        String topicName = getString(R.string.default_notification_channel_name);
-        JSONObject json = new JSONObject();
-        try {
-          /*
-            {
-              "topic": "News",
-              "to": "/topics/News",
-              "token": "",
-              "notification": {
-                "title": "curl FCM Message",
-                "body": "This is a Firebase Cloud Messaging Topic Message!"
-              },
-              "data": {
-                "image": "Image URL"
-              }
-            }
-           */
-          JSONObject notification = new JSONObject();
-            notification.put("title","A treasure has been planted");
-            notification.put("body","Click to start your hunt now");
-          JSONObject data=new JSONObject();
-            data.put("image","https://api.androidhive.info/images/minion.jpg");
-          // Set the json payload
-          json.put("topic", topicName);
-          json.put("to", "/topics/"+topicName);
-          json.put("token", "");
-          json.put("notification",notification);
-          json.put("data",data);
-          Log.i(TAG, "JSON Request : " + json.toString());
-        }
-        catch (JSONException e) {
-          Log.e(TAG,e.getMessage());
-        }
-
-        /* Ref: https://firebase.google.com/docs/cloud-messaging/android/topic-messaging
-        $ curl -X POST -H "Authorization:key=AIzaSyAEZkjyxfBtXdvgFo5toXaoxhS79K4gEVo" -H "Content-Type: application/json" -d '{ "topic" : "News", "to": "/topics/News","token": "", "notification": { "title": "curl FCM Message", "body": "This is a Firebase Cloud Messaging Topic Message!" }, "data": {"message": "This is a Firebase Cloud Messaging Topic M
-essage!"}}' https://fcm.googleapis.com/fcm/send
-         */
-        try {
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest("https://fcm.googleapis.com/fcm/send",
-                    json, new Response.Listener<JSONObject>() {
-              @Override
-              public void onResponse(JSONObject response) {
-                  Log.i(TAG, "JSON Response: " + response.toString());
-              }
-            }, new Response.ErrorListener() {
-              @Override
-              public void onErrorResponse(VolleyError error) {
-                  Log.i(TAG, "JSON Error: " + error.toString());
-              }
-            }) {
-              @Override
-              public Map<String, String> getHeaders(){
-                  Map<String, String> params = new HashMap<>();
-                  params.put("Authorization", "key=" + SERVER_API_KEY);
-                  params.put("Content-Type", "application/json");
-                  Log.i(TAG, "Params: " + params.toString());
-                  return params;
-              }
-            };
-            AppController.getInstance(this.getApplicationContext()).addToRequestQueue(jsonObjectRequest);
-        } catch (Exception e) {
-            Log.e(TAG,e.getMessage());
-        }
-  }
-
-  private void subscribeNotifications(){
-      String channelId  =  getString(R.string.default_notification_channel_id);
-      String channelName = getString(R.string.default_notification_channel_name);
-      // Register the notification handler
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          Log.i(TAG,"Initialized notification handler");
-          // Create channel to show notifications.
-          NotificationManager notificationManager = getSystemService(NotificationManager.class);
-          // Create the notification message content
-          NotificationChannel mChannel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW);
-          mChannel.setDescription("Treasure local ");
-          mChannel.enableLights(true);
-          mChannel.setLightColor(Color.RED);
-          mChannel.enableVibration(true);
-          mChannel.setVibrationPattern(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
-          notificationManager.createNotificationChannel(mChannel);
-      }
-
-      Log.d(TAG, "Subscribing to news topic");
-      // [START subscribe_topics]
-      FirebaseMessaging.getInstance().subscribeToTopic(channelName)
-              .addOnCompleteListener(new OnCompleteListener<Void>() {
-                  @Override
-                  public void onComplete(@NonNull Task<Void> task) {
-                      String msg = getString(R.string.msg_subscribed);
-                      if (!task.isSuccessful()) {
-                          msg = getString(R.string.msg_subscribe_failed);
-                      }
-                      Log.d(TAG, "Topic: "+channelName+", Message:"+msg);
-                      Toast.makeText(CloudAnchorActivity.this, msg, Toast.LENGTH_SHORT).show();
-                  }
-              });
-      // [END subscribe_topics]
-  }
 
 
   @Override
@@ -715,12 +632,12 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
                           + " could not be resolved. The error state was "
                           + cloudState);
                   snackbarHelper.showMessageWithDismiss(
-                      CloudAnchorActivity.this,
+                      HuntTreasureActivity.this,
                       getString(R.string.snackbar_resolve_error, cloudState));
                   return;
                 }
                 snackbarHelper.showMessageWithDismiss(
-                    CloudAnchorActivity.this, getString(R.string.snackbar_resolve_success));
+                    HuntTreasureActivity.this, getString(R.string.snackbar_resolve_success));
                 setNewAnchor(anchor);
               });
         });
@@ -742,7 +659,7 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
       roomCode = newRoomCode;
       roomCodeText.setText(String.valueOf(roomCode));
       snackbarHelper.showMessageWithDismiss(
-          CloudAnchorActivity.this, getString(R.string.snackbar_room_code_available));
+          HuntTreasureActivity.this, getString(R.string.snackbar_room_code_available));
       checkAndMaybeShare();
       synchronized (singleTapLock) {
         // Change currentMode to HOSTING after receiving the room code (not when the 'Host' button
@@ -756,7 +673,7 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
     public void onError(DatabaseError error) {
       Log.w(TAG, "A Firebase database error happened.", error.toException());
       snackbarHelper.showError(
-          CloudAnchorActivity.this, getString(R.string.snackbar_firebase_error));
+          HuntTreasureActivity.this, getString(R.string.snackbar_firebase_error));
     }
 
     @Override
@@ -765,7 +682,7 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
       if (cloudState.isError()) {
         Log.e(TAG, "Error hosting a cloud anchor, state " + cloudState);
         snackbarHelper.showMessageWithDismiss(
-            CloudAnchorActivity.this, getString(R.string.snackbar_host_error, cloudState));
+            HuntTreasureActivity.this, getString(R.string.snackbar_host_error, cloudState));
         return;
       }else{
           Log.i(TAG, "Cloud Anchor is set now");
@@ -785,7 +702,7 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
       firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId);
       Log.i(TAG, "Stored anchor id "+ cloudAnchorId + " in room "+roomCode);
       snackbarHelper.showMessageWithDismiss(
-          CloudAnchorActivity.this, getString(R.string.snackbar_cloud_id_shared));
+          HuntTreasureActivity.this, getString(R.string.snackbar_cloud_id_shared));
     }
 
     /**
@@ -797,7 +714,7 @@ essage!"}}' https://fcm.googleapis.com/fcm/send
     public void onFireNotification(String notification) {
       Log.i(TAG, "From Cloud: "+notification);
       snackbarHelper.showMessageWithDismiss(
-              CloudAnchorActivity.this, "From Cloud: "+notification);
+              HuntTreasureActivity.this, "From Cloud: "+notification);
     }
   }
 }

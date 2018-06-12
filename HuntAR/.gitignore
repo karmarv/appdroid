@@ -11,3 +11,6 @@
 #
 # # OS configurations.
 # .DS_Store
+
+/build
+google-services.json

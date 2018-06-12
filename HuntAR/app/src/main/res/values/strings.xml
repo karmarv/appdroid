@@ -47,6 +47,14 @@
   <string name="snackbar_resolve_success">The anchor was successfully resolved.</string>
   <string name="snackbar_room_code_available">The room code is now available. Please place an anchor to host.</string>
 
+
+	<string name="treasure_planes_looking">Move around slowly and possible treasure hiding spots might show up!</string>
+	<string name="treasure_planes_found">Treasure surface found! Click to place your treasure</string>
+	<string name="treasure_placed">Treasure placed, click again to relocate. Pinch to manipulate the size</string>
+	<string name="treasure_relocated">Treasure relocated! Pinch to manipulate the size</string>
+	<string name="treasure_trying_to_locate">Trying to locate the treasure&#8230; Move around where you placed it or place a new one</string>
+
+
   <!-- Messaging string -->
   <string name="quickstart_message">Click the SUBSCRIBE TO NEWS button below to subscribe to the
         news topic. Messages sent to the news topic will be received. The LOG TOKEN button logs the

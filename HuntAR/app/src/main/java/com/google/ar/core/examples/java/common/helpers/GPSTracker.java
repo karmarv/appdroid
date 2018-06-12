@@ -16,11 +16,11 @@ import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 
-import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
+import com.google.ar.core.examples.java.cloudanchor.HuntTreasureActivity;
 
 public class GPSTracker extends Service implements LocationListener {
 
-    private static final String TAG =  CloudAnchorActivity.class.getSimpleName() + "."
+    private static final String TAG =  HuntTreasureActivity.class.getSimpleName() + "."
             + GPSTracker.class.getSimpleName();
 
     private final Context mContext;

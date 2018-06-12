@@ -18,14 +18,14 @@ package com.google.ar.core.examples.java.common.messaging;
 
 import android.util.Log;
 
-import com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity;
+import com.google.ar.core.examples.java.cloudanchor.HuntTreasureActivity;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
 
 public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
 
-    private static final String TAG =  CloudAnchorActivity.class.getSimpleName() + "."
+    private static final String TAG =  HuntTreasureActivity.class.getSimpleName() + "."
             + MyFirebaseInstanceIDService.class.getSimpleName();
 
     /**

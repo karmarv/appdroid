@@ -20,6 +20,9 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
+
+import com.google.ar.core.examples.java.cloudanchor.GlobalVariables;
+
 import de.javagl.obj.Obj;
 import de.javagl.obj.ObjData;
 import de.javagl.obj.ObjReader;
@@ -35,6 +38,8 @@ import java.nio.ShortBuffer;
 /** Renders an object loaded from an OBJ file in OpenGL. */
 public class ObjectRenderer {
   private static final String TAG = ObjectRenderer.class.getSimpleName();
+  private float[] mRotationMatrix = new float[16];
+  private float[] mFinalModelViewProjectionMatrix = new float[16];
 
   /**
    * Blend mode.
@@ -273,7 +278,7 @@ public class ObjectRenderer {
    *
    * @param cameraView A 4x4 view matrix, in column-major order.
    * @param cameraPerspective A 4x4 projection matrix, in column-major order.
-   * @param lightIntensity Illumination intensity. Combined with diffuse and specular material
+   * @param colorCorrectionRgba Illumination intensity. Combined with diffuse and specular material
    *     properties.
    * @see #setBlendMode(BlendMode)
    * @see #updateModelMatrix(float[], float)
@@ -288,6 +293,8 @@ public class ObjectRenderer {
     // for calculating object position and light.
     Matrix.multiplyMM(modelViewMatrix, 0, cameraView, 0, modelMatrix, 0);
     Matrix.multiplyMM(modelViewProjectionMatrix, 0, cameraPerspective, 0, modelViewMatrix, 0);
+    Matrix.setRotateM(mRotationMatrix, 0, GlobalVariables.OBJECT_ROTATION, 0.0f, 1.0f, 0.0f);
+    Matrix.multiplyMM(mFinalModelViewProjectionMatrix, 0, modelViewProjectionMatrix, 0, mRotationMatrix, 0);
 
     GLES20.glUseProgram(program);
 
@@ -329,7 +336,7 @@ public class ObjectRenderer {
 
     // Set the ModelViewProjection matrix in the shader.
     GLES20.glUniformMatrix4fv(modelViewUniform, 1, false, modelViewMatrix, 0);
-    GLES20.glUniformMatrix4fv(modelViewProjectionUniform, 1, false, modelViewProjectionMatrix, 0);
+    GLES20.glUniformMatrix4fv(modelViewProjectionUniform, 1, false, mFinalModelViewProjectionMatrix, 0);
 
     // Enable vertex arrays
     GLES20.glEnableVertexAttribArray(positionAttribute);

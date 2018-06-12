@@ -17,7 +17,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.google.ar.core.examples.java.cloudanchor.CloudAnchorActivity">
+    tools:context="com.google.ar.core.examples.java.cloudanchor.HuntTreasureActivity">
 
   <android.opengl.GLSurfaceView
       android:id="@+id/surfaceview"
@@ -43,7 +43,7 @@
         android:text="@string/resolve_button_text"/>
 
     <Button
-        android:id="@+id/logTokenButton"
+        android:id="@+id/notifyHuntersButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
