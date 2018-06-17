@@ -13,6 +13,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -20,9 +21,13 @@ import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.SparseArray;
+import android.view.Display;
+import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -35,6 +40,7 @@ import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -101,10 +107,53 @@ public final class FaceTrackerActivity extends AppCompatActivity {
                             @Override
                             public void onPictureTaken(byte[] data) {
                                 Log.i("FaceTrakAct: onPicT:",""+data.length);
+                                int degrees = getDisplayRotation();
                                 mCapturedImage = BitmapFactory.decodeByteArray(data, 0, data.length);
-								//mCapturedImage = rotateImage(BitmapFactory.decodeByteArray(data, 0, data.length),isPortrait?90:180);
-                                mImageView.setImageBitmap(mCapturedImage);
-                            }
+								//mCapturedImage = rotateImage(BitmapFactory.decodeByteArray(data, 0, data.length),degrees);
+                                //mImageView.setImageBitmap(mCapturedImage);
+                                Bitmap bm = null;
+                                try {
+                                    // COnverting ByteArray to Bitmap - >Rotate and Convert back to Data
+                                    int CameraEyeValue = 0;
+                                    if (data != null) {
+                                        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+                                        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                                        //Bitmap bm = BitmapFactory.decodeByteArray(data, 0, (data != null) ? data.length : 0);
+                                        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
+                                            // Notice that width and height are reversed
+                                            Bitmap scaled = Bitmap.createScaledBitmap(mCapturedImage, screenHeight, screenWidth, true);
+                                            int w = scaled.getWidth();
+                                            int h = scaled.getHeight();
+                                            // Setting post rotate to 90
+                                            Matrix mtx = new Matrix();
+                                            boolean cameraFront = Boolean.TRUE;
+                                            CameraEyeValue = setPhotoOrientation(FaceTrackerActivity.this, cameraFront==true ? 1:0); // CameraID = 1 : front 0:back
+                                            if(cameraFront) { // As Front camera is Mirrored so Fliping the Orientation
+                                                if (CameraEyeValue == 270) {
+                                                    mtx.postRotate(90);
+                                                } else if (CameraEyeValue == 90) {
+                                                    mtx.postRotate(270);
+                                                }
+                                            }else{
+                                                mtx.postRotate(CameraEyeValue); // CameraEyeValue is default to Display Rotation
+                                            }
+
+                                            bm = Bitmap.createBitmap(scaled, 0, 0, w, h, mtx, true);
+                                        }else{// LANDSCAPE MODE
+                                            //No need to reverse width and height
+                                            Bitmap scaled = Bitmap.createScaledBitmap(bm, screenWidth, screenHeight, true);
+                                            bm=scaled;
+                                        }
+                                    }
+                                    // Converting the Die photo to Bitmap
+                                    Toast toast = Toast.makeText(getApplicationContext(), "Picture: "+CameraEyeValue , Toast.LENGTH_LONG);
+                                    toast.show();
+
+                                } catch (Exception e) {
+
+                                }
+                                mImageView.setImageBitmap(bm);
+                                }
                         });
                     }
                 }
@@ -173,8 +222,64 @@ public final class FaceTrackerActivity extends AppCompatActivity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
     }
- public static Bitmap rotateImage(Bitmap source, float angle) {
-        Log.v("MyLogger", "Rotating bitmap " + angle + " degrees");
+
+    public int setPhotoOrientation(Activity activity, int cameraId) {
+        android.hardware.Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
+        android.hardware.Camera.getCameraInfo(cameraId, info);
+        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+        int degrees = 0;
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                degrees = 0;
+                break;
+            case Surface.ROTATION_90:
+                degrees = 90;
+                break;
+            case Surface.ROTATION_180:
+                degrees = 180;
+                break;
+            case Surface.ROTATION_270:
+                degrees = 270;
+                break;
+        }
+
+        int result;
+        // do something for phones running an SDK before lollipop
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            result = (info.orientation + degrees) % 360;
+            result = (360 - result) % 360; // compensate the mirror
+        } else { // back-facing
+            result = (info.orientation - degrees + 360) % 360;
+        }
+
+        return result;
+    }
+
+    public int getDisplayRotation(){
+        Display display = ((WindowManager) getApplicationContext()
+                .getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+        int rotation = display.getRotation();
+        int degrees = 0;
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                degrees = 0;
+                break;
+            case Surface.ROTATION_90:
+                degrees = 90;
+                break;
+            case Surface.ROTATION_180:
+                degrees = 180;
+                break;
+            case Surface.ROTATION_270:
+                degrees = 270;
+                break;
+        }
+        Log.i("FaceTrakAct: onRot:","Display rotated by angle => "+degrees);
+        return degrees;
+    }
+
+    public static Bitmap rotateImage(Bitmap source, float angle) {
+        Log.v("FaceTrakAct: rot:", "Rotating bitmap " + angle + " degrees");
         Matrix matrix = new Matrix();
         matrix.postRotate(angle);
         return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(),

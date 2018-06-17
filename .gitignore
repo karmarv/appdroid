@@ -13,6 +13,10 @@ bin/
 gen/
 out/
 
+# Googlecloud creds
+google-services.json 
+huntar-88a42-firebase-adminsdk-uw4ag-243c9cde06.json
+
 # Gradle files
 .gradle/
 build/
